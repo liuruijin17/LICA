@@ -25,7 +25,7 @@ python3 -m venv lica
 Activate it
 
 ```
-source 3dlscptr/bin/activate
+source lica/bin/activate
 ```
 
 Then install dependencies
