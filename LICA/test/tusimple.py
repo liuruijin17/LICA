@@ -72,13 +72,8 @@ def kp_detection(db, nnet, result_dir, debug=False, evaluator=None):
         db_inds = db.db_inds[:100] if debug else db.db_inds
     num_images = db_inds.size
 
-    multi_scales = db.configs["test_scales"]
-    # categories = db.configs["categories"]
-    # fvv_categories = 9
 
     input_size  = db.configs["input_size"]  # [h w]
-    # output_size = db.configs["output_sizes"][0]  # [[h,w]]
-    # num_roi     = db.num_roi
 
     postprocessors = {'bbox': PostProcess()}
 
@@ -91,52 +86,51 @@ def kp_detection(db, nnet, result_dir, debug=False, evaluator=None):
         height, width = image.shape[0:2]
         # item  = db.detections(db_ind) # all in the raw coordinate
 
-        for scale in multi_scales:
-            images = np.zeros((1, 3, input_size[0], input_size[1]), dtype=np.float32)
-            masks = np.ones((1, 1, input_size[0], input_size[1]), dtype=np.float32)
-            orig_target_sizes = torch.tensor(input_size).unsqueeze(0).cuda()
-            # new_height = int(height * scale)  # 720
-            # new_width = int(width * scale)  # 1280
-            # new_center = np.array([new_height // 2, new_width // 2])  # 360 640
-            # inp_height = input_size[0]
-            # inp_width  = input_size[1]
-            # pad_image, pad_mask, border, offset = crop_image(image, new_center, [inp_height, inp_width])
-            pad_image     = image.copy()
-            pad_mask      = np.zeros((height, width, 1), dtype=np.float32)
-            resized_image = cv2.resize(pad_image, (input_size[1], input_size[0]))
-            resized_mask  = cv2.resize(pad_mask, (input_size[1], input_size[0]))
-            masks[0][0]   = resized_mask.squeeze()
-            resized_image = resized_image / 255.
-            normalize_(resized_image, db.mean, db.std)
-            resized_image = resized_image.transpose(2, 0, 1)
-            images[0]     = resized_image
-            images        = torch.from_numpy(images)
-            masks         = torch.from_numpy(masks)
+        images = np.zeros((1, 3, input_size[0], input_size[1]), dtype=np.float32)
+        masks = np.ones((1, 1, input_size[0], input_size[1]), dtype=np.float32)
+        orig_target_sizes = torch.tensor(input_size).unsqueeze(0).cuda()
+        # new_height = int(height * scale)  # 720
+        # new_width = int(width * scale)  # 1280
+        # new_center = np.array([new_height // 2, new_width // 2])  # 360 640
+        # inp_height = input_size[0]
+        # inp_width  = input_size[1]
+        # pad_image, pad_mask, border, offset = crop_image(image, new_center, [inp_height, inp_width])
+        pad_image     = image.copy()
+        pad_mask      = np.zeros((height, width, 1), dtype=np.float32)
+        resized_image = cv2.resize(pad_image, (input_size[1], input_size[0]))
+        resized_mask  = cv2.resize(pad_mask, (input_size[1], input_size[0]))
+        masks[0][0]   = resized_mask.squeeze()
+        resized_image = resized_image / 255.
+        normalize_(resized_image, db.mean, db.std)
+        resized_image = resized_image.transpose(2, 0, 1)
+        images[0]     = resized_image
+        images        = torch.from_numpy(images)
+        masks         = torch.from_numpy(masks)
 
-            conv_features, enc_attn_weights, dec_attn_weights = [], [], []
-            hooks = [
-                nnet.model.module.layer4[-1].register_forward_hook(
-                    lambda self, input, output: conv_features.append(output)),
-                nnet.model.module.transformer.encoder.layers[-1].self_attn.register_forward_hook(
-                    lambda self, input, output: enc_attn_weights.append(output[1])),
-                nnet.model.module.transformer.decoder.layers[-1].multihead_attn.register_forward_hook(
-                    lambda self, input, output: dec_attn_weights.append(output[1]))
-            ]
+        conv_features, enc_attn_weights, dec_attn_weights = [], [], []
+        hooks = [
+            nnet.model.module.layer4[-1].register_forward_hook(
+                lambda self, input, output: conv_features.append(output)),
+            nnet.model.module.transformer.encoder.layers[-1].self_attn.register_forward_hook(
+                lambda self, input, output: enc_attn_weights.append(output[1])),
+            nnet.model.module.transformer.decoder.layers[-1].multihead_attn.register_forward_hook(
+                lambda self, input, output: dec_attn_weights.append(output[1]))
+        ]
 
-            t0            = time.time()
-            outputs, weights = nnet.test([images, masks])
-            t             = time.time() - t0
+        t0            = time.time()
+        outputs, weights = nnet.test([images, masks])
+        t             = time.time() - t0
 
-            for hook in hooks:
-                hook.remove()
-            conv_features = conv_features[0]
-            enc_attn_weights = enc_attn_weights[0]
-            dec_attn_weights = dec_attn_weights[0]
+        for hook in hooks:
+            hook.remove()
+        conv_features = conv_features[0]
+        enc_attn_weights = enc_attn_weights[0]
+        dec_attn_weights = dec_attn_weights[0]
 
-            results = postprocessors['bbox'](outputs, orig_target_sizes)
+        results = postprocessors['bbox'](outputs, orig_target_sizes)
 
-            if evaluator is not None:
-                evaluator.add_prediction(ind, results.cpu().numpy(), t)
+        if evaluator is not None:
+            evaluator.add_prediction(ind, results.cpu().numpy(), t)
 
         if debug:
             img_lst = image_file.split('/')
@@ -213,60 +207,9 @@ def kp_detection(db, nnet, result_dir, debug=False, evaluator=None):
             # exit()
 
             preds = db.draw_annotation(ind, pred=results[0].cpu().numpy(), cls_pred=None, img=image)
-            # preds = db.draw_annotation(ind, pred=None, cls_pred=None, img=image)
-            #
             cv2.imwrite(os.path.join(lane_debug_dir, img_lst[-3] + '_'
                                      + img_lst[-2] + '_'
                                      + os.path.basename(image_file[:-4]) + '_GT.jpg'), preds)
-            #
-            # # Draw all prediction lanes
-            # pred = results[0].cpu().numpy()
-            # img = pad_image
-            # img_h, img_w, _ = img.shape
-            # pred = pred[pred[:, 0].astype(int) == 1]
-            # overlay = img.copy()
-            # for i, lane in enumerate(pred):
-            #     cls = int(lane[0])
-            #     # print(cls)
-            #     if cls != 0:
-            #         color = (0, 255, 0)
-            #     else:
-            #         color = (0, 0, 255)
-            #     # color = PRED_COLOR[i]
-            #
-            #     lane = lane[1:]  # remove conf
-            #     lower, upper = lane[0], lane[1]
-            #     lane = lane[2:]  # remove upper, lower positions
-            #
-            #     # generate points from the polynomial
-            #     ys = np.linspace(lower, upper, num=100)
-            #     points = np.zeros((len(ys), 2), dtype=np.int32)
-            #     points[:, 1] = (ys * img_h).astype(int)
-            #     # points[:, 0] = (np.polyval(lane, ys) * img_w).astype(int)
-            #     # points[:, 0] = ((lane[0] / (ys - lane[1]) + lane[2] + lane[3] * ys - lane[4]) * img_w).astype(int)
-            #     points[:, 0] = ((lane[0] / (ys - lane[1]) ** 2 + lane[2] / (ys - lane[1]) + lane[3] + lane[4] * ys -
-            #                      lane[5]) * img_w).astype(int)
-            #     points = points[(points[:, 0] > 0) & (points[:, 0] < img_w)]
-            #
-            #     # draw lane with a polyline on the overlay
-            #     for current_point, next_point in zip(points[:-1], points[1:]):
-            #         overlay = cv2.line(overlay, tuple(current_point), tuple(next_point), color=color, thickness=15)
-            #
-            #     # # draw lane ID
-            #     # if len(points) > 0:
-            #     #     cv2.putText(img, str(i), tuple(points[0]), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1,
-            #     #                 color=color,
-            #     #                 thickness=3)
-            # # Add lanes overlay
-            # w = 0.6
-            # img = ((1. - w) * img + w * overlay).astype(np.uint8)
-            # save_path = os.path.join(lane_debug_dir, '{}_{}_{}.jpg'.format(
-            #     img_lst[-3], img_lst[-2], os.path.basename(image_file[:-4])))
-            # # print(save_path)
-            # cv2.imwrite(save_path, img)
-            #
-            # exit()
-
 
     if not debug:
         exp_name = 'tusimple'
