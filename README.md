@@ -82,10 +82,10 @@ python test.py LICA_TR2_LLAMAS --testiter 500000 --split validation
 ## Demo
 
 ### Comparison between LICA and LI. The latter is trained without the proposed curvature-aware learning.
-[![LICA LI LLAMAS video](.github/licali.jpg "LICA LI LLAMAS video")](https://www.youtube.com/watch?v=SjBGOYSgisU)
+[![LICA LI LLAMAS video](.github/licali.jpg "LICA LI LLAMAS video")](https://youtu.be/SjBGOYSgisU)
 
 ### Comparison between LICA and LSTR.
-[![LICA LSTR LLAMAS video](.github/licali.jpg "LICA LI LLAMAS video")](https://www.youtube.com/watch?v=SjBGOYSgisU)
+[![LICA LSTR LLAMAS video](.github/licalstr.jpg "LICA LI LLAMAS video")](https://youtu.be/6cHtrE3ZsUQ)
 
 ## Training
 
