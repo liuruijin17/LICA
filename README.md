@@ -79,7 +79,7 @@ python test.py LICA_TR6_TUSIMPLE --testiter 500000
 python test.py LICA_TR2_LLAMAS --testiter 500000 --split validation
 ```
 
-[Video comparisons between LICA(TR2) and LI(TR2)](https://www.youtube.com/watch?v=SjBGOYSgisU)
+[![LICA LI LLAMAS video](.github/licali.jpg "LICA LI LLAMAS video")](https://www.youtube.com/watch?v=SjBGOYSgisU)
 
 ## Training
 
