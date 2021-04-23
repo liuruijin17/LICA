@@ -82,13 +82,9 @@ class SelfAttentionConv(nn.Module):
         self.padding = padding
         self.groups = groups
 
-        assert self.out_channels % self.groups == 0, \
-            "out_channels should be divided by groups. (example: out_channels: 40, groups: 4)"
-
         self.rel_h = nn.Parameter(torch.randn(out_channels // 2, 1, 1, kernel_size, 1), requires_grad=True)
         self.rel_w = nn.Parameter(torch.randn(out_channels // 2, 1, 1, 1, kernel_size), requires_grad=True)
         self.key_conv   = nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=bias)
-        # self.query_conv = nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=bias)
         self.query_conv = self.key_conv
         self.value_conv = nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=bias)
 
@@ -121,9 +117,7 @@ class SelfAttentionConv(nn.Module):
         q_out = q_out.transpose(3, 4)  # B groups ? ? C/groups kernel_size*kernel_size*groups
         out = torch.matmul(k_out, q_out)   # B groups ? ? kernel_size*kernel_size kernel_size*kernel_size
         out = F.softmax(out, dim=-1)  # B groups ? ? kernel_size*kernel_size kernel_size*kernel_size
-        # out = (out - torch.min(out)) / (torch.max(out) - torch.min(out) +1e-8)
-        out = torch.matmul(out, v_out)  # B groups ? ? kernel_size*kernel_size C
-        # /groups
+        out = torch.matmul(out, v_out)  # B groups ? ? kernel_size*kernel_size C/groups
         out = torch.mean(out, dim=-2)  # B groups ? ? C/groups
         out = out.squeeze(1)  # B ? ? C
         out = out.transpose(-1, -2) # B ? C ?
